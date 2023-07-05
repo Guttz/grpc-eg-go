@@ -1,9 +1,14 @@
 syntax = "proto3";
 package machine;
- 
+option go_package = "./machine";
 
 service Machine {
     rpc Execute(stream Instruction) returns (stream Result) {}
+}
+
+service lsp {
+    rpc DidChange(stream DidChangeTextDocumentParams) returns (stream Result) {}
+    rpc Completion(stream CompletionParams) returns (stream CompletionResponse) {}
 }
 
 message Instruction {
@@ -14,3 +19,45 @@ message Instruction {
 message Result {
     float output = 1;
 }
+
+message CompletionParams {
+  TextDocumentPositionParams text_document_position_params = 1;
+}
+
+message TextDocumentIdentifier {
+  string URI = 1;
+}
+
+message Position {
+  int32 line = 1;
+  int32 character = 2;
+}
+
+message TextDocumentPositionParams {
+  TextDocumentIdentifier text_document = 1;
+  Position position = 2;
+}
+
+
+message DidChangeTextDocumentParams {
+  VersionedTextDocumentIdentifier text_document = 1;
+  repeated TextDocumentContentChangeEvent content_changes = 2;
+}
+
+message VersionedTextDocumentIdentifier {
+  string URI = 1;
+  int32 version = 2;
+}
+
+message TextDocumentContentChangeEvent {
+  string text = 1;
+}
+
+message CompletionItem {
+  string label = 1;
+  string detail = 2;
+}
+
+message CompletionResponse {
+    repeated CompletionItem items = 1;
+  }

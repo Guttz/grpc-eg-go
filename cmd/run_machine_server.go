@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 
+	sqls "github.com/lighttiger2505/sqls/pkg/app"
 	"github.com/toransahu/grpc-eg-go/machine"
 	"github.com/toransahu/grpc-eg-go/server"
 	"google.golang.org/grpc"
@@ -29,7 +30,11 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
+	LSP := sqls.Serve("log.txt", "config.yml", false)
 	machine.RegisterMachineServer(grpcServer, &server.MachineServer{})
+	machine.RegisterLspServer(grpcServer, &server.LspServer{LSP: LSP})
+
 	grpcServer.Serve(lis)
+
 	log.Printf("Initializing gRPC server on port %d", *port)
 }

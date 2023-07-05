@@ -1,0 +1,12 @@
+2023/07/04 18:34:55 db worker: start
+2023/07/04 18:34:55 send err no database connection
+2023/07/04 18:34:55 Send Message: no database connection
+2023/07/05 08:29:04 db worker: start
+2023/07/05 08:29:04 send err no database connection
+2023/07/05 08:29:04 Send Message: no database connection
+2023/07/05 08:30:05 db worker: start
+2023/07/05 08:30:05 db worker: Update db chache primary complete
+2023/07/05 08:31:03 db worker: start
+2023/07/05 08:31:03 db worker: Update db chache primary complete
+2023/07/05 08:41:08 db worker: start
+2023/07/05 08:41:08 db worker: Update db chache primary complete

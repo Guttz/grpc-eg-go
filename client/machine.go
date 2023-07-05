@@ -20,6 +20,7 @@ import (
 
 var (
 	serverAddr = flag.String("server_addr", "localhost:9111", "The server address in the format of host:port")
+	lspClient  machine.LspClient
 )
 
 func runExecute(client machine.MachineClient, instructions []*machine.Instruction) {
@@ -58,6 +59,79 @@ func runExecute(client machine.MachineClient, instructions []*machine.Instructio
 	<-waitc
 }
 
+func RunDidChange(client machine.LspClient, didChangeParams *machine.DidChangeTextDocumentParams) {
+	log.Printf("Streaming %v", didChangeParams)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := client.DidChange(ctx)
+	if err != nil {
+		log.Fatalf("%v.DidChange(ctx) = %v, %v: ", client, stream, err)
+	}
+	waitc := make(chan struct{})
+
+	go func() {
+		for {
+			result, err := stream.Recv()
+			if err == io.EOF {
+				log.Println("EOF")
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Printf("Err: %v", err)
+			}
+			log.Printf("output: %v", result.GetOutput())
+		}
+	}()
+
+	if err := stream.Send(didChangeParams); err != nil {
+		log.Fatalf("%v.Send(%v) = %v: ", stream, didChangeParams, err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+	if err := stream.CloseSend(); err != nil {
+		log.Fatalf("%v.CloseSend() got error %v, want %v", stream, err, nil)
+	}
+	<-waitc
+}
+
+func Completion(client machine.LspClient, completionParams *machine.CompletionParams) {
+	log.Printf("Streaming %v", completionParams)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := client.Completion(ctx)
+	if err != nil {
+		log.Fatalf("%v.DidChange(ctx) = %v, %v: ", client, stream, err)
+	}
+	waitc := make(chan struct{})
+
+	go func() {
+		for {
+			result, err := stream.Recv()
+			if err == io.EOF {
+				log.Println("EOF")
+				close(waitc)
+				return
+			}
+			if err != nil {
+				log.Printf("Err: %v", err)
+			}
+
+			log.Printf("completions: %v", result.GetItems())
+		}
+	}()
+
+	if err := stream.Send(completionParams); err != nil {
+		log.Fatalf("%v.Send(%v) = %v: ", stream, completionParams, err)
+	}
+
+	time.Sleep(50 * time.Millisecond)
+	if err := stream.CloseSend(); err != nil {
+		log.Fatalf("%v.CloseSend() got error %v, want %v", stream, err, nil)
+	}
+	<-waitc
+}
+
 func main() {
 	flag.Parse()
 	var opts []grpc.DialOption
@@ -69,20 +143,39 @@ func main() {
 	}
 	defer conn.Close()
 	client := machine.NewMachineClient(conn)
+	lspClient = machine.NewLspClient(conn)
+
+	t := &machine.TextDocumentContentChangeEvent{
+		Text: "se",
+	}
+	tt := []*machine.TextDocumentContentChangeEvent{t}
+
+	RunDidChange(lspClient, &machine.DidChangeTextDocumentParams{
+		TextDocument: &machine.VersionedTextDocumentIdentifier{
+			Version: 2,
+			URI:     "test.sql",
+		},
+		ContentChanges: tt,
+	})
+
+	completionParams := &machine.CompletionParams{
+		TextDocumentPositionParams: &machine.TextDocumentPositionParams{
+			TextDocument: &machine.TextDocumentIdentifier{
+				URI: "test.sql",
+			},
+			Position: &machine.Position{
+				Line:      0,
+				Character: 2,
+			},
+		}}
+
+	Completion(lspClient, completionParams)
 
 	// try Execute()
 	instructions := []*machine.Instruction{
 		{Operand: 1, Operator: "PUSH"},
 		{Operand: 2, Operator: "PUSH"},
 		{Operator: "ADD"},
-		{Operand: 3, Operator: "PUSH"},
-		{Operator: "DIV"},
-		{Operand: 4, Operator: "PUSH"},
-		{Operator: "MUL"},
-		{Operator: "FIB"},
-		{Operand: 5, Operator: "PUSH"},
-		{Operand: 6, Operator: "PUSH"},
-		{Operator: "SUB"},
 	}
 
 	runExecute(client, instructions)
